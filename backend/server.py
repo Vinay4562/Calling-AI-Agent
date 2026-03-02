@@ -47,9 +47,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # MongoDB connection
-mongo_url = os.environ.get('MONGO_URL', '')
+mongo_url = settings.MONGO_URL
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'test_database')]
+db = client[settings.DB_NAME or 'test_database']
 
 # FastAPI app
 app = FastAPI(title="Outbound AI Calling System", version="1.0.0")

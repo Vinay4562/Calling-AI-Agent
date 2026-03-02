@@ -21,8 +21,8 @@ class Settings:
     ELEVENLABS_API_KEY: str = os.environ.get('ELEVENLABS_API_KEY', '')
     ELEVENLABS_VOICE_ID: str = os.environ.get('ELEVENLABS_VOICE_ID', '')
 
-    # OpenAI / Emergent LLM
-    EMERGENT_LLM_KEY: str = os.environ.get('EMERGENT_LLM_KEY', '')
+    # OpenAI / LLM
+    LLM_API_KEY: str = os.environ.get('LLM_API_KEY', '')
 
     # Google Sheets
     GOOGLE_SHEET_ID: str = os.environ.get('GOOGLE_SHEET_ID', '')
@@ -50,7 +50,7 @@ class Settings:
         return bool(self.GOOGLE_SHEET_ID and self.GOOGLE_SERVICE_ACCOUNT_JSON)
 
     def is_llm_configured(self) -> bool:
-        return bool(self.EMERGENT_LLM_KEY)
+        return bool(self.LLM_API_KEY)
 
 
 settings = Settings()

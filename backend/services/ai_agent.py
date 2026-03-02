@@ -4,7 +4,44 @@ Manages call flow through 8 states with interest detection.
 """
 import logging
 from typing import Tuple
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+from openai import AsyncOpenAI
+
+class UserMessage:
+    def __init__(self, text):
+        self.text = text
+
+class LlmChat:
+    def __init__(self, api_key, session_id, system_message):
+        self.client = AsyncOpenAI(api_key=api_key)
+        self.session_id = session_id
+        self.system_message = system_message
+        self.model = "gpt-4-turbo-preview"  # Default to gpt-4
+    
+    def with_model(self, provider, model):
+        # We'll use OpenAI provider, map model if needed
+        if model == "gpt-5.2":
+            self.model = "gpt-4-turbo-preview"
+        else:
+            self.model = model
+        
+    async def send_message(self, message):
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.system_message},
+                    {"role": "user", "content": message.text}
+                ],
+                max_tokens=150,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error in LlmChat.send_message: {e}")
+            return "I apologize, but I'm having trouble connecting right now. Let's talk again later."
+
 from config import settings
 from models.schemas import ConversationState
 
@@ -123,7 +160,7 @@ async def generate_ai_response(
     conversation_state: str,
     user_input: str
 ) -> str:
-    """Generate AI response using GPT-5.2 via Emergent integrations."""
+    """Generate AI response using GPT-5.2."""
     if not settings.is_llm_configured():
         logger.warning("LLM not configured. Returning fallback response.")
         return _get_fallback_response(conversation_state, language, lead_name)
@@ -136,7 +173,7 @@ async def generate_ai_response(
         )
 
         chat = LlmChat(
-            api_key=settings.EMERGENT_LLM_KEY,
+            api_key=settings.LLM_API_KEY,
             session_id=session_id,
             system_message=system_prompt
         )
