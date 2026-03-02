@@ -721,10 +721,13 @@ async def get_dashboard_stats():
 
 app.include_router(api_router)
 
+# CORS configuration
+origins = [o.strip() for o in settings.CORS_ORIGINS.split(',')] if settings.CORS_ORIGINS else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=origins,
     allow_credentials=True,
-    allow_origins=settings.CORS_ORIGINS.split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
