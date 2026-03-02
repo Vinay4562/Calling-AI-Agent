@@ -41,17 +41,24 @@ class SheetsService:
             return False
 
         try:
-            creds_json = json.loads(
-                base64.b64decode(settings.GOOGLE_SERVICE_ACCOUNT_JSON).decode()
-            )
+            logger.info("Decoding Google Service Account JSON...")
+            decoded_creds = base64.b64decode(settings.GOOGLE_SERVICE_ACCOUNT_JSON).decode()
+            logger.info("Parsing Google Service Account JSON...")
+            creds_json = json.loads(decoded_creds)
+            
+            logger.info(f"Authenticating with Google Sheets for project: {creds_json.get('project_id')}...")
             credentials = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
             self.client = gspread.authorize(credentials)
-            self.sheet = self.client.open_by_key(settings.GOOGLE_SHEET_ID).sheet1
+            
+            logger.info(f"Opening Google Sheet by key: {settings.GOOGLE_SHEET_ID}...")
+            spreadsheet = self.client.open_by_key(settings.GOOGLE_SHEET_ID)
+            self.sheet = spreadsheet.sheet1
+            
             self._initialized = True
             logger.info("Google Sheets client initialized successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to initialize Google Sheets: {e}")
+            logger.exception(f"Failed to initialize Google Sheets: {str(e)}")
             return False
 
     def get_all_leads(self) -> List[Lead]:

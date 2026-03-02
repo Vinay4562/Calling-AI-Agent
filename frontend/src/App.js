@@ -365,30 +365,30 @@ function App() {
             )}
 
             <div className="leads-table-wrapper" data-testid="leads-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Attempts</th>
-                    <th>Language</th>
-                    <th>WhatsApp</th>
-                    <th>Last Called</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="data-table">
+                <div className="data-table-header">
+                  <div className="data-table-row">
+                    <div className="data-table-th">Name</div>
+                    <div className="data-table-th">Phone</div>
+                    <div className="data-table-th">Status</div>
+                    <div className="data-table-th">Attempts</div>
+                    <div className="data-table-th">Language</div>
+                    <div className="data-table-th">WhatsApp</div>
+                    <div className="data-table-th">Last Called</div>
+                    <div className="data-table-th">Actions</div>
+                  </div>
+                </div>
+                <div className="data-table-body">
                   {leads.length > 0 ? leads.map((lead, i) => (
-                    <tr key={lead.id || i}>
-                      <td>{lead.name}</td>
-                      <td className="mono">{lead.phone}</td>
-                      <td><span className={`badge ${getStatusBadge(lead.status)}`}>{lead.status || 'New'}</span></td>
-                      <td>{lead.call_attempts || 0}</td>
-                      <td>{lead.language || '-'}</td>
-                      <td>{lead.whatsapp_sent || 'No'}</td>
-                      <td>{lead.last_called_at ? new Date(lead.last_called_at).toLocaleString() : '-'}</td>
-                      <td>
+                    <div key={lead.id || i} className="data-table-row">
+                      <div className="data-table-td">{lead.name}</div>
+                      <div className="data-table-td mono">{lead.phone}</div>
+                      <div className="data-table-td"><span className={`badge ${getStatusBadge(lead.status)}`}>{lead.status || 'New'}</span></div>
+                      <div className="data-table-td">{lead.call_attempts || 0}</div>
+                      <div className="data-table-td">{lead.language || '-'}</div>
+                      <div className="data-table-td">{lead.whatsapp_sent || 'No'}</div>
+                      <div className="data-table-td">{lead.last_called_at ? new Date(lead.last_called_at).toLocaleString() : '-'}</div>
+                      <div className="data-table-td">
                         <button
                           className="btn btn-sm btn-primary"
                           onClick={() => initiateCall(lead.id)}
@@ -397,13 +397,13 @@ function App() {
                         >
                           {actionLoading === `call-${lead.id}` ? '...' : 'Call'}
                         </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   )) : (
-                    <tr><td colSpan="8" className="empty-state">No leads yet. Add leads manually or sync from Google Sheets.</td></tr>
+                    <div className="data-table-row"><div className="data-table-td empty-state" style={{ width: '100%', display: 'table-cell' }}>No leads yet. Add leads manually or sync from Google Sheets.</div></div>
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -412,36 +412,36 @@ function App() {
           <div className="calls-tab" data-testid="calls-tab">
             <h3>Call History</h3>
             <div className="calls-table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Lead</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Interest</th>
-                    <th>WhatsApp</th>
-                    <th>State</th>
-                    <th>Time</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="data-table">
+                <div className="data-table-header">
+                  <div className="data-table-row">
+                    <div className="data-table-th">Lead</div>
+                    <div className="data-table-th">Phone</div>
+                    <div className="data-table-th">Status</div>
+                    <div className="data-table-th">Interest</div>
+                    <div className="data-table-th">WhatsApp</div>
+                    <div className="data-table-th">State</div>
+                    <div className="data-table-th">Time</div>
+                    <div className="data-table-th">Notes</div>
+                  </div>
+                </div>
+                <div className="data-table-body">
                   {callHistory.length > 0 ? callHistory.map((log, i) => (
-                    <tr key={log.id || i}>
-                      <td>{log.lead_name}</td>
-                      <td className="mono">{log.lead_phone}</td>
-                      <td><span className={`badge ${getStatusBadge(log.status)}`}>{log.status || 'Pending'}</span></td>
-                      <td>{log.interest_detected ? 'Yes' : 'No'}</td>
-                      <td>{log.whatsapp_sent ? 'Sent' : 'No'}</td>
-                      <td><span className="state-badge">{log.conversation_state}</span></td>
-                      <td>{new Date(log.timestamp).toLocaleString()}</td>
-                      <td>{log.notes}</td>
-                    </tr>
+                    <div key={log.id || i} className="data-table-row">
+                      <div className="data-table-td">{log.lead_name}</div>
+                      <div className="data-table-td mono">{log.lead_phone}</div>
+                      <div className="data-table-td"><span className={`badge ${getStatusBadge(log.status)}`}>{log.status || 'Pending'}</span></div>
+                      <div className="data-table-td">{log.interest_detected ? 'Yes' : 'No'}</div>
+                      <div className="data-table-td">{log.whatsapp_sent ? 'Sent' : 'No'}</div>
+                      <div className="data-table-td"><span className="state-badge">{log.conversation_state}</span></div>
+                      <div className="data-table-td">{new Date(log.timestamp).toLocaleString()}</div>
+                      <div className="data-table-td">{log.notes}</div>
+                    </div>
                   )) : (
-                    <tr><td colSpan="8" className="empty-state">No call history yet.</td></tr>
+                    <div className="data-table-row"><div className="data-table-td empty-state" style={{ width: '100%', display: 'table-cell' }}>No call history yet.</div></div>
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </div>
         )}

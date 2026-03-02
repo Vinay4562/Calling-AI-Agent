@@ -498,13 +498,28 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  display: table;
 }
 
-.data-table thead {
+.data-table-header {
+  display: table-header-group;
   background: var(--bg-card);
 }
 
-.data-table th {
+.data-table-body {
+  display: table-row-group;
+}
+
+.data-table-row {
+  display: table-row;
+}
+
+.data-table-row:hover {
+  background: var(--bg-card);
+}
+
+.data-table-th {
+  display: table-cell;
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
@@ -515,14 +530,12 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.data-table td {
+.data-table-td {
+  display: table-cell;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(30, 41, 59, 0.3);
   color: var(--text-secondary);
-}
-
-.data-table tbody tr:hover {
-  background: var(--bg-card);
+  vertical-align: middle;
 }
 
 .data-table .mono {
