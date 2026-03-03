@@ -7,6 +7,7 @@ from typing import Tuple
 # from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 from openai import AsyncOpenAI
+import asyncio
 
 class UserMessage:
     def __init__(self, text):
@@ -14,33 +15,55 @@ class UserMessage:
 
 class LlmChat:
     def __init__(self, api_key, session_id, system_message):
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.api_key = api_key
         self.session_id = session_id
         self.system_message = system_message
-        self.model = "gpt-4o"  # Use gpt-4o as default
+        self.provider = "gemini" if (api_key or "").startswith("AIza") else "openai"
+        self.model = "gpt-4o" if self.provider == "openai" else "models/gemini-2.5-flash"
+        self.client = AsyncOpenAI(api_key=api_key) if self.provider == "openai" else None
     
     def with_model(self, provider, model):
-        # We'll use OpenAI provider, map model if needed
-        if model == "gpt-5.2":
-            self.model = "gpt-4o"
+        if provider:
+            self.provider = provider
+            if self.provider == "openai" and self.client is None:
+                self.client = AsyncOpenAI(api_key=self.api_key)
+            if self.provider != "openai":
+                self.client = None
+        if self.provider == "openai":
+            self.model = "gpt-4o" if model == "gpt-5.2" else model
         else:
-            self.model = model
+            if model and isinstance(model, str) and model.startswith("models/"):
+                self.model = model
+            else:
+                # Keep current default for Gemini if an OpenAI-style model name is passed
+                self.model = "models/gemini-2.5-flash"
         
     async def send_message(self, message):
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.system_message},
-                    {"role": "user", "content": message.text}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-            return response.choices[0].message.content
+            if self.provider == "openai":
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.system_message},
+                        {"role": "user", "content": message.text}
+                    ],
+                    max_tokens=150,
+                    temperature=0.7
+                )
+                return response.choices[0].message.content
+            else:
+                from google import genai
+                def _call():
+                    client = genai.Client(api_key=self.api_key)
+                    r = client.models.generate_content(
+                        model=self.model,
+                        contents=f"{self.system_message}\n\nUser: {message.text}"
+                    )
+                    return getattr(r, "text", "") or ""
+                return await asyncio.get_running_loop().run_in_executor(None, _call)
         except Exception as e:
             logger.error(f"Error in LlmChat.send_message: {e}")
-            raise  # Raise so caller can handle with fallback
+            raise
 
 from config import settings
 from models.schemas import ConversationState
@@ -177,7 +200,7 @@ async def generate_ai_response(
             session_id=session_id,
             system_message=system_prompt
         )
-        chat.with_model("openai", "gpt-5.2")
+        chat.with_model(chat.provider, "models/gemini-2.5-flash")
 
         message = UserMessage(text=user_input if user_input else "Start the conversation.")
         response = await chat.send_message(message)
