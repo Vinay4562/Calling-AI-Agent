@@ -61,6 +61,11 @@ chainlit.md
 .chainlit
 .ipynb_checkpoints/
 .ac
+**/*.backup
+**/*.tmp
+**/*.swp
+**/*.orig
+backend/scripts/
 
 # Deployment
 .vercel
