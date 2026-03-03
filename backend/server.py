@@ -27,7 +27,7 @@ from config import settings
 from models.schemas import (
     Lead, CallSession, CallLog, SystemStatus,
     ConversationState, CallStatus, LeadStatus,
-    ManualCallRequest, SchedulerControlRequest
+    ManualCallRequest, SchedulerControlRequest, LeadUpdate
 )
 from services.sheets_service import sheets_service
 from services.telephony_service import telephony_service
@@ -91,11 +91,13 @@ async def initiate_call_for_lead(lead: Lead):
     session_id = str(uuid.uuid4())
 
     # Create call session in MongoDB
+    language = lead.language.lower().strip() if lead.language else "english"
     session = CallSession(
         id=session_id,
         lead_id=lead.id,
         lead_name=lead.name,
         lead_phone=lead.phone,
+        language=language,
         conversation_state=ConversationState.INTRO.value,
         call_status=CallStatus.PENDING.value
     )
@@ -110,13 +112,13 @@ async def initiate_call_for_lead(lead: Lead):
     greeting = await generate_ai_response(
         session_id=session_id,
         lead_name=lead.name,
-        language="english",
+        language=language,
         conversation_state=ConversationState.INTRO.value,
         user_input=""
     )
 
     # Generate TTS audio for greeting
-    tts_result = await tts_service.generate_speech(greeting, "english")
+    tts_result = await tts_service.generate_speech(greeting, language)
     if tts_result:
         audio_cache[tts_result["audio_id"]] = tts_result["audio_data"]
 
@@ -197,9 +199,12 @@ async def _finalize_call(session_id: str):
 
     # Send WhatsApp if interested
     whatsapp_sent = False
-    if session.interest_detected:
+    if session.interest_detected and not session.whatsapp_sent:
+        language = session.language if session.language else "english"
         whatsapp_sent = await whatsapp_service.send_followup(
-            session.lead_phone, session.lead_name, session.language or "english"
+            session.lead_phone,
+            session.lead_name,
+            language=language
         )
         if whatsapp_sent:
             lead_status = LeadStatus.WHATSAPP_SENT.value
@@ -274,12 +279,13 @@ async def voice_answer_webhook(request: Request, session_id: str = ""):
         return Response(content=response, media_type="application/xml")
 
     session = CallSession(**session_doc)
+    language = session.language.lower().strip() if session.language else "english"
 
     # Generate greeting
     greeting = await generate_ai_response(
         session_id=session_id,
         lead_name=session.lead_name,
-        language="english",
+        language=language,
         conversation_state=ConversationState.INTRO.value,
         user_input=""
     )
@@ -291,13 +297,13 @@ async def voice_answer_webhook(request: Request, session_id: str = ""):
     )
 
     # Generate TTS and serve
-    tts_result = await tts_service.generate_speech(greeting, "english")
+    tts_result = await tts_service.generate_speech(greeting, language)
     audio_url = None
     if tts_result:
         audio_cache[tts_result["audio_id"]] = tts_result["audio_data"]
         audio_url = f"{settings.WEBHOOK_BASE_URL}/api/audio/{tts_result['audio_id']}"
 
-    twiml = telephony_service.generate_greeting_twiml(session_id, audio_url)
+    twiml = telephony_service.generate_greeting_twiml(session_id, audio_url, language)
     return Response(content=twiml, media_type="application/xml")
 
 
@@ -319,7 +325,7 @@ async def voice_gather_webhook(request: Request, session_id: str = ""):
 
     session = CallSession(**session_doc)
     current_state = session.conversation_state
-    language = session.language or "english"
+    language = session.language.lower().strip() if session.language else "english"
 
     # Add user speech to transcript
     await db.call_sessions.update_one(
@@ -515,7 +521,18 @@ async def get_leads():
 @api_router.post("/leads")
 async def create_lead(lead: Lead):
     """Create a new lead manually."""
-    lead_dict = lead.model_dump()
+    lang = (lead.language or "english").strip().lower()
+    lead_dict = Lead(
+        id=lead.id,
+        name=lead.name,
+        phone=lead.phone,
+        status=lead.status,
+        call_attempts=lead.call_attempts,
+        language=lang,
+        last_called_at=lead.last_called_at,
+        whatsapp_sent=lead.whatsapp_sent,
+        row_number=lead.row_number
+    ).model_dump()
     await db.leads.insert_one(lead_dict)
     return {k: v for k, v in lead_dict.items() if k != "_id"}
 
@@ -554,6 +571,33 @@ async def create_leads_bulk(leads: List[Lead]):
         created += 1
     return {"message": f"Created {created} leads", "created": created}
 
+@api_router.put("/leads/{lead_id}")
+async def update_lead(lead_id: str, updates: LeadUpdate):
+    """Update a lead by ID."""
+    update_dict = {k: v for k, v in updates.model_dump().items() if v is not None}
+    if "language" in update_dict:
+        update_dict["language"] = (update_dict["language"] or "english").strip().lower()
+    result = await db.leads.update_one({"id": lead_id}, {"$set": update_dict})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    row = lead.get("row_number", 0) if lead else 0
+    if row > 0 and settings.is_sheets_configured():
+        fields_for_sheet = {k: update_dict[k] for k in ["name", "phone", "status", "call_attempts", "language", "whatsapp_sent"] if k in update_dict}
+        # Always update last_called_at if provided in update_dict
+        if "last_called_at" in update_dict:
+            fields_for_sheet["last_called_at"] = update_dict["last_called_at"]
+        if fields_for_sheet:
+            sheets_service.update_lead_fields(row, fields_for_sheet)
+    return lead
+
+@api_router.delete("/leads/{lead_id}")
+async def delete_lead(lead_id: str):
+    """Delete a lead by ID."""
+    result = await db.leads.delete_one({"id": lead_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return {"message": "Lead deleted", "id": lead_id}
 
 # ==================== CALL MANAGEMENT ====================
 
@@ -569,7 +613,8 @@ async def initiate_manual_call(req: ManualCallRequest):
         lead = Lead(
             id=str(uuid.uuid4()),
             name=req.name or "Unknown",
-            phone=req.phone
+            phone=req.phone,
+            language=req.language or "english"
         )
         await db.leads.insert_one(lead.model_dump())
     else:

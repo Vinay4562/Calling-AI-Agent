@@ -16,6 +16,8 @@ function App() {
   // New lead form
   const [newLead, setNewLead] = useState({ name: '', phone: '', language: '' });
   const [showAddLead, setShowAddLead] = useState(false);
+  const [editingLeadId, setEditingLeadId] = useState(null);
+  const [editLead, setEditLead] = useState({ name: '', phone: '', language: '' });
 
   const showNotification = useCallback((message, type = 'success') => {
     setNotification({ message, type });
@@ -147,6 +149,54 @@ function App() {
       await fetchDashboard();
     } catch (err) {
       showNotification('Failed to sync Google Sheets', 'error');
+    }
+    setActionLoading('');
+  };
+
+  const startEditLead = (lead) => {
+    setEditingLeadId(lead.id);
+    setEditLead({ name: lead.name || '', phone: lead.phone || '', language: lead.language || '' });
+  };
+
+  const cancelEditLead = () => {
+    setEditingLeadId(null);
+    setEditLead({ name: '', phone: '', language: '' });
+  };
+
+  const saveEditLead = async () => {
+    if (!editingLeadId) return;
+    setActionLoading(`update-${editingLeadId}`);
+    try {
+      const res = await fetch(`${API_URL}/api/leads/${editingLeadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editLead)
+      });
+      if (res.ok) {
+        showNotification('Lead updated');
+        cancelEditLead();
+        await fetchLeads();
+      } else {
+        showNotification('Failed to update lead', 'error');
+      }
+    } catch (err) {
+      showNotification('Failed to update lead', 'error');
+    }
+    setActionLoading('');
+  };
+
+  const deleteLead = async (leadId) => {
+    setActionLoading(`delete-${leadId}`);
+    try {
+      const res = await fetch(`${API_URL}/api/leads/${leadId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showNotification('Lead deleted');
+        await fetchLeads();
+      } else {
+        showNotification('Failed to delete lead', 'error');
+      }
+    } catch (err) {
+      showNotification('Failed to delete lead', 'error');
     }
     setActionLoading('');
   };
@@ -381,22 +431,93 @@ function App() {
                 <div className="data-table-body">
                   {leads.length > 0 ? leads.map((lead, i) => (
                     <div key={lead.id || i} className="data-table-row">
-                      <div className="data-table-td">{lead.name}</div>
-                      <div className="data-table-td mono">{lead.phone}</div>
+                      <div className="data-table-td">
+                        {editingLeadId === lead.id ? (
+                          <input
+                            type="text"
+                            value={editLead.name}
+                            onChange={e => setEditLead({ ...editLead, name: e.target.value })}
+                            data-testid={`edit-name-${lead.id}`}
+                          />
+                        ) : lead.name}
+                      </div>
+                      <div className="data-table-td mono">
+                        {editingLeadId === lead.id ? (
+                          <input
+                            type="text"
+                            value={editLead.phone}
+                            onChange={e => setEditLead({ ...editLead, phone: e.target.value })}
+                            data-testid={`edit-phone-${lead.id}`}
+                          />
+                        ) : lead.phone}
+                      </div>
                       <div className="data-table-td"><span className={`badge ${getStatusBadge(lead.status)}`}>{lead.status || 'New'}</span></div>
                       <div className="data-table-td">{lead.call_attempts || 0}</div>
-                      <div className="data-table-td">{lead.language || '-'}</div>
+                      <div className="data-table-td">
+                        {editingLeadId === lead.id ? (
+                          <select
+                            value={editLead.language}
+                            onChange={e => setEditLead({ ...editLead, language: e.target.value })}
+                            data-testid={`edit-language-${lead.id}`}
+                          >
+                            <option value="">Preferred Language</option>
+                            <option value="english">English</option>
+                            <option value="telugu">Telugu</option>
+                          </select>
+                        ) : (lead.language || '-')}
+                      </div>
                       <div className="data-table-td">{lead.whatsapp_sent || 'No'}</div>
                       <div className="data-table-td">{lead.last_called_at ? new Date(lead.last_called_at).toLocaleString() : '-'}</div>
                       <div className="data-table-td">
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => initiateCall(lead.id)}
-                          disabled={actionLoading === `call-${lead.id}` || lead.status === 'Not Interested'}
-                          data-testid={`call-lead-${lead.id}`}
-                        >
-                          {actionLoading === `call-${lead.id}` ? '...' : 'Call'}
-                        </button>
+                        {editingLeadId === lead.id ? (
+                          <>
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={saveEditLead}
+                              disabled={actionLoading === `update-${lead.id}`}
+                              data-testid={`save-lead-${lead.id}`}
+                            >
+                              {actionLoading === `update-${lead.id}` ? '...' : 'Save'}
+                            </button>
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={cancelEditLead}
+                              data-testid={`cancel-lead-${lead.id}`}
+                              style={{ marginLeft: 8 }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => initiateCall(lead.id)}
+                              disabled={actionLoading === `call-${lead.id}` || lead.status === 'Not Interested'}
+                              data-testid={`call-lead-${lead.id}`}
+                            >
+                              {actionLoading === `call-${lead.id}` ? '...' : 'Call'}
+                            </button>
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => startEditLead(lead)}
+                              disabled={actionLoading === `update-${lead.id}`}
+                              data-testid={`edit-lead-${lead.id}`}
+                              style={{ marginLeft: 8 }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => deleteLead(lead.id)}
+                              disabled={actionLoading === `delete-${lead.id}`}
+                              data-testid={`delete-lead-${lead.id}`}
+                              style={{ marginLeft: 8 }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )) : (

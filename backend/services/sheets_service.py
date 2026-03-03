@@ -70,15 +70,16 @@ class SheetsService:
             records = self.sheet.get_all_records()
             leads = []
             for idx, record in enumerate(records, start=2):  # Row 1 is header
+                record_lower = {str(k).strip().lower(): record.get(k) for k in record.keys()}
                 lead = Lead(
-                    id=str(record.get("id", "")),
-                    name=str(record.get("name", "")),
-                    phone=str(record.get("phone", "")),
-                    status=str(record.get("status", "")),
-                    call_attempts=int(record.get("call_attempts", 0) or 0),
-                    language=str(record.get("language", "")),
-                    last_called_at=str(record.get("last_called_at", "")) or None,
-                    whatsapp_sent=str(record.get("whatsapp_sent", "No")),
+                    id=str(record_lower.get("id", "")),
+                    name=str(record_lower.get("name", "")),
+                    phone=str(record_lower.get("phone", "")),
+                    status=str(record_lower.get("status", "")),
+                    call_attempts=int(record_lower.get("call_attempts", 0) or 0),
+                    language=str(record_lower.get("language", "")),
+                    last_called_at=str(record_lower.get("last_called_at", "")) or None,
+                    whatsapp_sent=str(record_lower.get("whatsapp_sent", "No")),
                     row_number=idx
                 )
                 leads.append(lead)
@@ -119,5 +120,32 @@ class SheetsService:
             logger.error(f"Error updating lead in Sheets: {e}")
             return False
 
+
+sheets_columns_map = {
+    "id": 1,
+    "name": 2,
+    "phone": 3,
+    "status": 4,
+    "call_attempts": 5,
+    "language": 6,
+    "last_called_at": 7,
+    "whatsapp_sent": 8
+}
+
+class SheetsService(SheetsService):
+    def update_lead_fields(self, row_number: int, fields: dict) -> bool:
+        """Update specific lead fields in Google Sheets based on provided dict keys."""
+        if not self._init_client():
+            return False
+        try:
+            for key, value in fields.items():
+                col = sheets_columns_map.get(key)
+                if col is not None and value is not None:
+                    self.sheet.update_cell(row_number, col, value)
+            logger.info(f"Updated row {row_number} fields: {list(fields.keys())}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating lead fields in Sheets: {e}")
+            return False
 
 sheets_service = SheetsService()

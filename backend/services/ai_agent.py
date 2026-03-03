@@ -17,12 +17,12 @@ class LlmChat:
         self.client = AsyncOpenAI(api_key=api_key)
         self.session_id = session_id
         self.system_message = system_message
-        self.model = "gpt-4-turbo-preview"  # Default to gpt-4
+        self.model = "gpt-4o"  # Use gpt-4o as default
     
     def with_model(self, provider, model):
         # We'll use OpenAI provider, map model if needed
         if model == "gpt-5.2":
-            self.model = "gpt-4-turbo-preview"
+            self.model = "gpt-4o"
         else:
             self.model = model
         
@@ -40,7 +40,7 @@ class LlmChat:
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Error in LlmChat.send_message: {e}")
-            return "I apologize, but I'm having trouble connecting right now. Let's talk again later."
+            raise  # Raise so caller can handle with fallback
 
 from config import settings
 from models.schemas import ConversationState
@@ -212,5 +212,5 @@ def _get_fallback_response(state: str, language: str, name: str) -> str:
         ConversationState.CLOSING.value: "మీ సమయానికి చాలా ధన్యవాదాలు! మంచి రోజు గడపండి!",
     }
 
-    responses = responses_te if language == "telugu" else responses_en
+    responses = responses_te if language.lower() == "telugu" else responses_en
     return responses.get(state, "Thank you for your time.")

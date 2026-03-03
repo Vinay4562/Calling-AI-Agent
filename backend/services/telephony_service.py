@@ -68,24 +68,27 @@ class TelephonyService:
             logger.error(f"Error initiating call to {phone}: {e}")
             return None
 
-    def generate_greeting_twiml(self, session_id: str, audio_url: Optional[str] = None) -> str:
+    def generate_greeting_twiml(self, session_id: str, audio_url: Optional[str] = None, language: str = "english") -> str:
         """Generate TwiML for initial greeting with speech gathering."""
         response = VoiceResponse()
 
         if audio_url:
             response.play(audio_url)
         else:
+            text = "Hello! Thank you for picking up. Is this a good time to talk?" if language.lower() == "english" else "నమస్కారం! మాట్లాడటానికి ఇది సరైన సమయమేనా?"
+            voice = "Polly.Aditi" if language.lower() == "english" else "Polly.Vani"
+            lang = "en-IN" if language.lower() == "english" else "te-IN"
             response.say(
-                "Hello! Thank you for picking up. Is this a good time to talk?",
-                voice="Polly.Aditi",
-                language="en-IN"
+                text,
+                voice=voice,
+                language=lang
             )
 
         gather = Gather(
             input="speech",
             action=f"{settings.WEBHOOK_BASE_URL}/api/webhook/voice/gather?session_id={session_id}",
             method="POST",
-            language="en-IN",
+            language="te-IN" if language.lower() == "telugu" else "en-IN",
             speech_timeout="3",
             timeout=10
         )
@@ -108,8 +111,8 @@ class TelephonyService:
         if audio_url:
             response.play(audio_url)
         elif text:
-            voice = "Polly.Aditi" if language == "english" else "Polly.Aditi"
-            lang = "en-IN" if language == "english" else "te-IN"
+            voice = "Polly.Aditi" if language.lower() == "english" else "Polly.Vani"
+            lang = "en-IN" if language.lower() == "english" else "te-IN"
             response.say(text, voice=voice, language=lang)
 
         if end_call:
@@ -119,7 +122,7 @@ class TelephonyService:
                 input="speech",
                 action=f"{settings.WEBHOOK_BASE_URL}/api/webhook/voice/gather?session_id={session_id}",
                 method="POST",
-                language="te-IN" if language == "telugu" else "en-IN",
+                language="te-IN" if language.lower() == "telugu" else "en-IN",
                 speech_timeout="3",
                 timeout=10
             )

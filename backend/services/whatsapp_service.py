@@ -64,19 +64,20 @@ class WhatsAppService:
             if not phone.startswith("+"):
                 phone = f"+91{phone}"
 
-            template = WHATSAPP_MESSAGES.get(language, WHATSAPP_MESSAGES["english"])
+            template = WHATSAPP_MESSAGES.get(language.lower(), WHATSAPP_MESSAGES["english"])
             message_body = template.format(name=name)
 
             from_number = f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}"
             to_number = f"whatsapp:{phone}"
 
+            logger.info(f"Attempting to send WhatsApp from {from_number} to {to_number}")
             message = self.client.messages.create(
                 body=message_body,
                 from_=from_number,
                 to=to_number
             )
 
-            logger.info(f"WhatsApp sent to {phone}: SID={message.sid}")
+            logger.info(f"WhatsApp message status: {message.status}, SID: {message.sid}")
             return True
         except Exception as e:
             logger.error(f"Error sending WhatsApp to {phone}: {e}")

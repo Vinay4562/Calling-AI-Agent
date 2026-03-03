@@ -99,6 +99,7 @@ class ManualCallRequest(BaseModel):
     lead_id: Optional[str] = None
     phone: Optional[str] = None
     name: Optional[str] = None
+    language: Optional[str] = None
 
 
 class SchedulerControlRequest(BaseModel):
@@ -108,3 +109,12 @@ class SchedulerControlRequest(BaseModel):
 class ConfigUpdateRequest(BaseModel):
     key: str
     value: str
+
+
+class LeadUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+    call_attempts: Optional[int] = None
+    language: Optional[str] = None
+    whatsapp_sent: Optional[str] = None
